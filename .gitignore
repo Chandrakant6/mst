@@ -1,1 +1,6 @@
-mst.png
+.venv/
+__pycache__/
+
+# generated data
+*.png
+*.gif
