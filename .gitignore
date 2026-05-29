@@ -3,4 +3,4 @@ __pycache__/
 
 # generated data
 *.png
-*.gif
+!main.png
