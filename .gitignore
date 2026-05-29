@@ -4,3 +4,4 @@ __pycache__/
 # generated data
 *.png
 !main.png
+!terminal.png
