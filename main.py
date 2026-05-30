@@ -5,18 +5,21 @@ from scipy.sparse.csgraph import dijkstra
 from scipy.spatial.distance import cdist
 from k_means_constrained import KMeansConstrained
 
-# =========================================================
-# CONFIG
-# =========================================================
+from math import sqrt, ceil, floor
 
-NUM_CLUSTERS       = 17
-POINTS_PER_CLUSTER = 17
-TOTAL_POINTS       = NUM_CLUSTERS * POINTS_PER_CLUSTER  # 289
-RANDOM_SEED        = 42
 
 # =========================================================
 # PIPELINE FUNCTIONS
 # =========================================================
+
+def get_num_cluster(total_points):
+    pts_sqrt = sqrt(total_points)
+    n_cluster = round(pts_sqrt)
+
+    size_min, size_max = floor(pts_sqrt), ceil(pts_sqrt)
+    print(f"[0] Cluster Size {n_cluster}")
+    return (n_cluster, size_min, size_max)
+
 
 def generate_points(total_points, seed=42):
     """Step 1 — Generate random 2D integer points."""
@@ -27,12 +30,12 @@ def generate_points(total_points, seed=42):
     return coords
 
 
-def cluster_points(coords, n_clusters, pts_per_cluster, seed=42):
+def cluster_points(coords, n_clusters, size_min, size_max, seed=42):
     """Step 2 — Balanced K-Means: exactly pts_per_cluster per cluster."""
     model = KMeansConstrained(
         n_clusters=n_clusters,
-        size_min=pts_per_cluster,
-        size_max=pts_per_cluster,
+        size_min=size_min,
+        size_max=size_max,
         random_state=seed,
     )
     labels = model.fit_predict(coords)
@@ -186,9 +189,13 @@ def visualize(cluster_pts, hub_coords, H, orig_ids, global_W, out_path="main.png
 # =========================================================
 
 def main():
+    RANDOM_SEED=42
+    TOTAL_POINTS = 289
+
+    n_cluster, size_min, size_max = get_num_cluster(TOTAL_POINTS)
     coords      = generate_points(TOTAL_POINTS, RANDOM_SEED)
-    labels      = cluster_points(coords, NUM_CLUSTERS, POINTS_PER_CLUSTER, RANDOM_SEED)
-    cluster_pts, hub_coords = build_clusters(coords, labels, NUM_CLUSTERS)
+    labels      = cluster_points(coords, n_cluster, size_min, size_max, RANDOM_SEED)
+    cluster_pts, hub_coords = build_clusters(coords, labels, n_cluster)
     _           = run_local_dijkstra(cluster_pts)
     H, orig_ids, global_W, _ = run_global_dijkstra(hub_coords)
     visualize(cluster_pts, hub_coords, H, orig_ids, global_W)
