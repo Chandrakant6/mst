@@ -6,11 +6,19 @@ from scipy.spatial.distance import cdist
 from k_means_constrained import KMeansConstrained
 
 from math import sqrt, ceil, floor
-
+import argparse
 
 # =========================================================
 # PIPELINE FUNCTIONS
 # =========================================================
+
+def get_input():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("points", nargs="?", type=int, default=289)
+    parser.add_argument("seed", nargs="?", type=int, default=42)
+    args = parser.parse_args()
+    return args.points, args.seed
+
 
 def get_num_cluster(total_points):
     pts_sqrt = sqrt(total_points)
@@ -98,7 +106,7 @@ def get_tree_edges(W, source=0):
     return [(pred[v], v) for v in range(len(pred)) if pred[v] >= 0]
 
 
-def visualize(cluster_pts, hub_coords, H, orig_ids, global_W, out_path="main.png"):
+def visualize(cluster_pts, hub_coords, H, orig_ids, global_W, out_path="map.png"):
     """Step 6 — Two-panel plot: local clusters and global hub graph."""
     n_clusters = len(cluster_pts)
     COLORS     = plt.cm.viridis(np.linspace(0, 1, n_clusters))
@@ -189,12 +197,10 @@ def visualize(cluster_pts, hub_coords, H, orig_ids, global_W, out_path="main.png
 # =========================================================
 
 def main():
-    RANDOM_SEED=42
-    TOTAL_POINTS = 289
-
-    n_cluster, size_min, size_max = get_num_cluster(TOTAL_POINTS)
-    coords      = generate_points(TOTAL_POINTS, RANDOM_SEED)
-    labels      = cluster_points(coords, n_cluster, size_min, size_max, RANDOM_SEED)
+    total_points, seed = get_input()
+    n_cluster, size_min, size_max = get_num_cluster(total_points)
+    coords      = generate_points(total_points, seed)
+    labels      = cluster_points(coords, n_cluster, size_min, size_max, seed)
     cluster_pts, hub_coords = build_clusters(coords, labels, n_cluster)
     _           = run_local_dijkstra(cluster_pts)
     H, orig_ids, global_W, _ = run_global_dijkstra(hub_coords)
