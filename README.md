@@ -23,7 +23,7 @@ The pipeline runs seven steps, each wrapped in its own function:
 | — | `get_tree_edges` | Reconstructs an edge list from Dijkstra's predecessor array |
 | 6 | `visualize` | Renders a two-panel matplotlib figure and saves it to `main.png` |
 
-Input is handled by `get_input`, which parses optional CLI arguments (see [Usage](#usage)).  
+Input is handled by `get_input`, which parses optional CLI arguments (see [Usage](#usage)).
 All steps are orchestrated by `main()`.
 
 ### `get_num_cluster`
@@ -87,10 +87,10 @@ Expected output (defaults):
 [3] Hubs identified — one per cluster
 [4] Local Dijkstra done for all 17 clusters
 [5] Global Dijkstra done — global hub = original cluster <N>
-[6] Saved → main.png
+[6] Saved → map.png
 ```
 
-The plot is saved as **`main.png`** in the working directory.
+The plot is saved as **`map.png`** in the working directory.
 
 ---
 
@@ -101,7 +101,7 @@ The plot is saved as **`main.png`** in the working directory.
 ![Terminal output screenshot](terminal.png)
 
 
-### Saved Plot (`main.png`)
+### Saved Plot (`map.png`)
 
 ![Pipeline visualisation](map.png)
 
