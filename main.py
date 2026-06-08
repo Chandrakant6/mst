@@ -7,6 +7,8 @@ from k_means_constrained import KMeansConstrained
 
 from math import sqrt, ceil, floor
 import argparse
+from collections import defaultdict
+
 
 # =========================================================
 # PIPELINE FUNCTIONS
@@ -75,29 +77,66 @@ def build_clusters(coords, labels, n_clusters):
 
 
 def run_local_dijkstra(cluster_pts):
-    """Steps 4 — Dijkstra on every cluster's complete (sq-dist) graph."""
-    results = []
+    local_trees = []
+
     for pts in cluster_pts:
-        W              = cdist(pts, pts, metric='sqeuclidean')
-        dist_from_hub  = dijkstra(W, directed=False, indices=0)
-        results.append(dist_from_hub)
+        W = cdist(pts, pts, metric='sqeuclidean')
+
+        distances, predecessors = dijkstra(
+            W,
+            directed=False,
+            indices=0,
+            return_predecessors=True
+        )
+
+        tree = defaultdict(list)
+
+        for child, parent in enumerate(predecessors):
+            if parent >= 0:
+                tree[int(parent)].append(child)
+
+        local_trees.append({
+            "distances": distances,
+            "tree": tree
+        })
+
     print(f"[4] Local Dijkstra done for all {len(cluster_pts)} clusters")
-    return results
+
+    return local_trees
 
 
 def run_global_dijkstra(hub_coords):
-    """Step 5 — Dijkstra on the complete graph of all cluster hubs."""
-    global_hi  = find_hub(hub_coords)
-    order      = [global_hi] + [i for i in range(len(hub_coords)) if i != global_hi]
-    H          = hub_coords[order]          # global hub at row 0
-    orig_ids   = order
 
-    global_W        = cdist(H, H, metric='sqeuclidean')
-    global_dist_mat = dijkstra(global_W, directed=False)
-    global_dist     = global_dist_mat[0]    # distances from global hub
+    global_hi = find_hub(hub_coords)
 
-    print(f"[5] Global Dijkstra done — global hub = original cluster {orig_ids[0]}")
-    return H, orig_ids, global_W, global_dist
+    order = [global_hi] + [
+        i for i in range(len(hub_coords))
+        if i != global_hi
+    ]
+
+    H = hub_coords[order]
+    orig_ids = order
+
+    global_W = cdist(H, H, metric='sqeuclidean')
+
+    distances, predecessors = dijkstra(
+        global_W,
+        directed=False,
+        indices=0,
+        return_predecessors=True
+    )
+
+    tree = defaultdict(list)
+
+    for child, parent in enumerate(predecessors):
+        if parent >= 0:
+            tree[int(parent)].append(child)
+
+    print(
+        f"[5] Global Dijkstra done — global hub = original cluster {orig_ids[0]}"
+    )
+
+    return H, orig_ids, global_W, distances, tree
 
 
 def get_tree_edges(W, source=0):
@@ -192,6 +231,29 @@ def visualize(cluster_pts, hub_coords, H, orig_ids, global_W, out_path="map.png"
     print(f"[6] Saved → {out_path}")
 
 
+
+def print_tree(tree, node=0, prefix="", is_last=True):
+    if prefix == "":
+        print("   ",node)
+    else:
+        connector = "└── " if is_last else "├── "
+        print(prefix + connector + str(node))
+
+    children = sorted(tree[node])
+
+    for i, child in enumerate(children):
+        last_child = (i == len(children) - 1)
+
+        child_prefix = prefix + (
+            "    " if is_last else "│   "
+        )
+
+        print_tree(
+            tree,
+            child,
+            child_prefix,
+            last_child
+        )
 # =========================================================
 # MAIN
 # =========================================================
@@ -202,8 +264,22 @@ def main():
     coords      = generate_points(total_points, seed)
     labels      = cluster_points(coords, n_cluster, size_min, size_max, seed)
     cluster_pts, hub_coords = build_clusters(coords, labels, n_cluster)
-    _           = run_local_dijkstra(cluster_pts)
-    H, orig_ids, global_W, _ = run_global_dijkstra(hub_coords)
+    
+    local_results = run_local_dijkstra(cluster_pts)
+
+    H, orig_ids, global_W, global_dist, global_tree = (
+        run_global_dijkstra(hub_coords)
+        )
+
+    print("\nGLOBAL TREE")
+    print_tree(global_tree)
+
+    for cluster_id, result in enumerate(local_results):
+
+        print(f"\nCLUSTER {cluster_id}")
+
+        print_tree(result["tree"])
+    
     visualize(cluster_pts, hub_coords, H, orig_ids, global_W)
 
 if __name__ == "__main__":
