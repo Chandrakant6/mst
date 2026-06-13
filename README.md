@@ -1,117 +1,391 @@
 # Hierarchical Dijkstra Pipeline
 
-A two-level shortest-path pipeline that partitions random 2-D points into
-balanced clusters, runs Dijkstra locally inside each cluster, then runs a
-second Dijkstra across the cluster hubs to form a global routing tree.
+A hierarchical routing pipeline that partitions a large set of points into balanced clusters, constructs local Dijkstra trees inside each cluster, and connects those clusters through a second-level Dijkstra tree built on cluster hubs.
 
-With the default 289 points this produces 17 clusters of 17 points each.
+The project explores scalable routing structures for logistics networks, transport systems, and large game worlds.
 
 ---
 
-## How It Works
+# Overview
 
-The pipeline runs seven steps, each wrapped in its own function:
+Traditional shortest-path approaches become expensive when applied directly to large complete graphs.
 
-| Step | Function | What it does |
-|------|----------|--------------|
-| 0 | `get_num_cluster` | Derives the number of clusters as `round(√total_points)` and computes the allowed cluster size range (`floor`/`ceil` of √) |
-| 1 | `generate_points` | Generates `total_points` random 2-D integer points in `[-N, N)` |
-| 2 | `cluster_points` | Balanced K-Means — clusters are constrained to `size_min`/`size_max` points each |
-| 3 | `build_clusters` | Finds each cluster's hub (point closest to centroid) and moves it to index 0 |
-| 4 | `run_local_dijkstra` | Builds a complete squared-distance graph per cluster and runs Dijkstra from the hub |
-| 5 | `run_global_dijkstra` | Same, but on all hubs — finds the global hub and its shortest-path tree |
-| — | `get_tree_edges` | Reconstructs an edge list from Dijkstra's predecessor array |
-| 6 | `visualize` | Renders a two-panel matplotlib figure and saves it to `main.png` |
+This project reduces the problem into two levels:
 
-Input is handled by `get_input`, which parses optional CLI arguments (see [Usage](#usage)).
-All steps are orchestrated by `main()`.
+1. Local routing within clusters.
+2. Global routing between cluster hubs.
 
-### `get_num_cluster`
+The resulting hierarchy forms a transport backbone that can be used for:
 
-The number of clusters is not a fixed constant — it is derived from the input size:
-
-```
-n_clusters = round(√total_points)
-size_min   = floor(√total_points)
-size_max   = ceil(√total_points)
-```
-
-This keeps clusters roughly square (equal width and height in point count) and lets `KMeansConstrained` absorb any remainder by allowing each cluster to hold either `size_min` or `size_max` points. For a perfect square like 289, all three values collapse to 17. For a non-square like 300 (√ ≈ 17.32), you get 17 clusters of either 17 or 18 points.
+* Game logistics
+* Settlement supply chains
+* Resource distribution
+* Procedural transportation networks
+* Hierarchical routing research
 
 ---
 
-## Requirements
+# Pipeline
 
-```
-numpy
-scipy
-matplotlib
-k-means-constrained
+```text
+Points
+│
+├── Balanced K-Means Clustering
+│
+├── Cluster 0
+│   └── Local Dijkstra Tree
+│
+├── Cluster 1
+│   └── Local Dijkstra Tree
+│
+├── ...
+│
+└── Hub Points
+    │
+    └── Global Dijkstra Tree
 ```
 
-Install with:
+Each cluster maintains its own routing tree.
+
+Cluster hubs are then connected through a second Dijkstra tree, forming the global transport network.
+
+---
+
+# Algorithm
+
+## 1. Point Generation
+
+Random 2D points are generated:
+
+```python
+points.shape == (N, 2)
+```
+
+where:
+
+```text
+N = total number of points
+```
+
+---
+
+## 2. Balanced Clustering
+
+Points are partitioned using constrained K-Means.
+
+Cluster count is chosen as:
+
+```text
+cluster_count = round(√N)
+```
+
+Cluster sizes are constrained to:
+
+```text
+floor(√N) ≤ cluster_size ≤ ceil(√N)
+```
+
+This keeps clusters approximately balanced.
+
+For example:
+
+```text
+N = 255
+
+cluster_count ≈ 16
+
+cluster_size ≈ 15–16
+```
+
+---
+
+## 3. Hub Selection
+
+Each cluster selects a hub node.
+
+A hub is defined as the node minimizing the sum of squared distances to all other nodes in the cluster:
+
+```text
+hub = argmin(sum(distance_matrix))
+```
+
+The hub acts as the local distribution center.
+
+---
+
+## 4. Local Dijkstra Trees
+
+For every cluster:
+
+1. Construct a complete graph.
+2. Compute squared Euclidean distances.
+3. Run Dijkstra from the cluster hub.
+
+Distance metric:
+
+```python
+metric="sqeuclidean"
+```
+
+Squared distances intentionally penalize long connections, producing more structured trees than ordinary Euclidean distance.
+
+Each tree is stored as:
+
+```python
+{
+    "hub": int,
+    "predecessors": ndarray,
+    "edges": [
+        (parent, child),
+        ...
+    ]
+}
+```
+
+---
+
+## 5. Global Dijkstra Tree
+
+All local hubs are collected.
+
+The hub set becomes a second-level graph.
+
+The same process is repeated:
+
+1. Select a global hub.
+2. Build a complete graph on hubs.
+3. Run Dijkstra.
+
+The resulting tree forms the global routing backbone.
+
+---
+
+# Project Structure
+
+```text
+project/
+├── main.py
+├── tree.py
+└── eval.py
+```
+
+### main.py
+
+Contains:
+
+* Point generation
+* Clustering
+* Hub selection
+* Dijkstra execution
+* Pipeline orchestration
+
+### tree.py
+
+Contains:
+
+* Iterative tree printer
+
+### eval.py
+
+Contains:
+
+* Tree evaluation metrics
+* Depth calculations
+* Hub-distance calculations
+
+---
+
+# Tree Representation
+
+The hierarchy uses three representations:
+
+## Predecessor Array
+
+```python
+[-9999, 0, 1, 1, 2]
+```
+
+Returned directly by Dijkstra.
+
+---
+
+## Edge List
+
+```python
+[
+    (0, 1),
+    (1, 2),
+    (1, 3),
+    (2, 4)
+]
+```
+
+Used for evaluation and future routing logic.
+
+---
+
+## Printed Tree
+
+```text
+0
+├── 1
+│   ├── 2
+│   │   └── 4
+│   └── 3
+```
+
+Used for debugging and inspection.
+
+---
+
+# Evaluation Metrics
+
+Each local cluster and the global network are evaluated.
+
+## Network Metrics
+
+| Metric       | Description                  |
+| ------------ | ---------------------------- |
+| Total Length | Sum of all tree edge lengths |
+| Avg Edge     | Average edge length          |
+| Max Edge     | Longest edge in the tree     |
+
+---
+
+## Structural Metrics
+
+| Metric    | Description              |
+| --------- | ------------------------ |
+| Avg Depth | Average node depth       |
+| Max Depth | Deepest node in the tree |
+
+Depth measures the number of hops from the hub.
+
+---
+
+## Logistics Metrics
+
+| Metric       | Description                     |
+| ------------ | ------------------------------- |
+| Avg Hub Dist | Average route distance from hub |
+| Max Hub Dist | Longest route distance from hub |
+
+Hub distance is measured along tree paths rather than straight-line distance.
+
+These metrics are particularly useful for evaluating distribution efficiency.
+
+---
+
+# Example Output
+
+```text
+GLOBAL NETWORK
+
+Hub           : 12
+
+Total Length  : 1432.55
+Avg Edge      : 95.50
+Max Edge      : 214.32
+
+Avg Depth     : 1.94
+Max Depth     : 4
+
+Avg Hub Dist  : 167.28
+Max Hub Dist  : 418.92
+```
+
+```text
+GLOBAL TREE
+
+    12
+    ├── 1
+    ├── 4
+    ├── 5
+    │   └── 10
+    └── ...
+```
+
+---
+
+# Complexity
+
+Let:
+
+```text
+N = total points
+K = √N clusters
+```
+
+Average cluster size:
+
+```text
+√N
+```
+
+The hierarchy processes:
+
+```text
+K local graphs
++
+1 hub graph
+```
+
+instead of a single monolithic structure.
+
+This significantly improves scalability and makes the approach practical for larger simulations.
+
+---
+
+# Current Limitations
+
+* Uses complete graphs inside clusters.
+* Uses complete graph between hubs.
+* Clustering quality affects routing quality.
+* Not guaranteed to produce globally optimal routes.
+* Currently limited to two hierarchy levels.
+
+---
+
+# Future Work
+
+* Edge load analysis
+* Network diameter
+* Route stretch metrics
+* Sparse graph support
+* Dynamic node insertion/removal
+* Multi-level hierarchies (3+ levels)
+* Logistics simulation layer
+* Visualization tools
+
+---
+
+# Requirements
 
 ```bash
-pip install numpy scipy matplotlib k-means-constrained
+pip install numpy scipy k-means-constrained
 ```
 
 ---
 
-## Usage
+# Run
 
 ```bash
-python main.py [points] [seed]
+python main.py
 ```
 
-Both arguments are optional positional arguments:
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `points` | `289`   | Total number of random 2-D points to generate |
-| `seed`   | `42`    | NumPy / K-Means random seed for reproducibility |
-
-Examples:
-
-```bash
-python main.py            # 289 points, seed 42 (default)
-python main.py 400        # 400 points, seed 42
-python main.py 400 7      # 400 points, seed 7
-```
-
-Expected output (defaults):
-
-```
-[0] Cluster Size 17
-[1] Generated (289, 2)
-[2] Balanced K-Means
-[3] Hubs identified — one per cluster
-[4] Local Dijkstra done for all 17 clusters
-[5] Global Dijkstra done — global hub = original cluster <N>
-[6] Saved → map.png
-```
-
-The plot is saved as **`map.png`** in the working directory.
+The number of points can currently be adjusted directly in the source code.
 
 ---
 
-## Demo
+# Intended Use Case
 
-### Terminal Output
+This project is primarily a routing and logistics experiment.
 
-![Terminal output screenshot](terminal.png)
+Potential applications include:
 
-
-### Saved Plot (`map.png`)
-
-![Pipeline visualisation](map.png)
-
-#### **Panel A — Local clusters**  
-Each colour is one cluster. Faint lines show the complete squared-distance graph;
-bold lines show the Dijkstra shortest-path tree rooted at the hub (★).
-
-#### **Panel B — Global hubs**  
-Each cluster is reduced to its hub node. The purple tree is the global
-Dijkstra shortest-path spanning tree; the red star (★) is the global hub —
-the hub closest to the centroid of all hubs.
-
----
+* Trade route generation
+* Resource transport systems
+* NPC logistics
+* Settlement supply chains
+* Procedural infrastructure generation
+* Hierarchical pathfinding research
