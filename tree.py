@@ -32,11 +32,14 @@ def print_tree(predecessors, root_node):
             child = child_nodes[index]
 
             is_child_last = (
-                index == len(child_nodes) - 1
+                index ==
+                len(child_nodes) - 1
             )
 
             child_prefix = prefix + (
-                "    " if is_last else "│   "
+                "    "
+                if is_last
+                else "│   "
             )
 
             stack.append(

@@ -240,7 +240,9 @@ Used for debugging and inspection.
 
 # Evaluation Metrics
 
-Each local cluster and the global network are evaluated.
+Each local cluster and the global network are evaluated using a collection of structural, routing, and logistics metrics.
+
+---
 
 ## Network Metrics
 
@@ -250,30 +252,57 @@ Each local cluster and the global network are evaluated.
 | Avg Edge     | Average edge length          |
 | Max Edge     | Longest edge in the tree     |
 
+These metrics estimate infrastructure cost and network footprint.
+
 ---
 
 ## Structural Metrics
 
-| Metric    | Description              |
-| --------- | ------------------------ |
-| Avg Depth | Average node depth       |
-| Max Depth | Deepest node in the tree |
+| Metric           | Description                                  |
+| ---------------- | -------------------------------------------- |
+| Avg Depth        | Average node depth                           |
+| Max Depth        | Deepest node in the tree                     |
+| Leaf Count       | Number of terminal nodes                     |
+| Hub Degree       | Number of direct hub children                |
+| Branching Factor | Average number of children per internal node |
+| Depth Imbalance  | Max Depth / Avg Depth                        |
 
-Depth measures the number of hops from the hub.
+These metrics describe the overall shape and balance of the routing tree.
 
 ---
 
 ## Logistics Metrics
 
-| Metric       | Description                     |
-| ------------ | ------------------------------- |
-| Avg Hub Dist | Average route distance from hub |
-| Max Hub Dist | Longest route distance from hub |
+| Metric       | Description                         |
+| ------------ | ----------------------------------- |
+| Avg Hub Dist | Average route distance from the hub |
+| Max Hub Dist | Longest route distance from the hub |
 
 Hub distance is measured along tree paths rather than straight-line distance.
 
-These metrics are particularly useful for evaluating distribution efficiency.
+These metrics are useful for evaluating distribution efficiency and service coverage.
 
+---
+
+## Routing Metrics
+
+| Metric      | Description                                                             |
+| ----------- | ----------------------------------------------------------------------- |
+| Diameter    | Longest shortest-path distance within the tree                          |
+| Avg Stretch | Average ratio between tree route distance and direct Euclidean distance |
+| Max Stretch | Worst-case stretch ratio                                                |
+
+Stretch measures the routing penalty introduced by the tree structure.
+
+A stretch value of:
+
+```text
+1.0
+```
+
+indicates a perfectly direct route.
+
+Higher values indicate additional travel caused by hierarchical routing.
 ---
 
 # Example Output
@@ -281,30 +310,26 @@ These metrics are particularly useful for evaluating distribution efficiency.
 ```text
 GLOBAL NETWORK
 
-Hub           : 12
+total_length       : 1432.55
+avg_edge           : 95.50
+max_edge           : 214.32
 
-Total Length  : 1432.55
-Avg Edge      : 95.50
-Max Edge      : 214.32
+avg_depth          : 1.94
+max_depth          : 4
 
-Avg Depth     : 1.94
-Max Depth     : 4
+avg_hub_dist       : 167.28
+max_hub_dist       : 418.92
 
-Avg Hub Dist  : 167.28
-Max Hub Dist  : 418.92
+leaf_count         : 9
+hub_degree         : 6
+branching_factor   : 1.67
+depth_imbalance    : 2.06
+
+diameter           : 587.41
+
+avg_stretch        : 1.29
+max_stretch        : 2.84
 ```
-
-```text
-GLOBAL TREE
-
-    12
-    ├── 1
-    ├── 4
-    ├── 5
-    │   └── 10
-    └── ...
-```
-
 ---
 
 # Complexity
@@ -349,14 +374,20 @@ This significantly improves scalability and makes the approach practical for lar
 # Future Work
 
 * Edge load analysis
-* Network diameter
-* Route stretch metrics
+* Traffic simulation
+* Resource-flow modelling
 * Sparse graph support
 * Dynamic node insertion/removal
 * Multi-level hierarchies (3+ levels)
-* Logistics simulation layer
-* Visualization tools
-
+* Alternative hub-selection strategies
+* Alternative clustering strategies
+* Visualization improvements
+* Interactive network explorer
+* Route query system
+* Real game-world integration
+* Benchmarking against single-level Dijkstra
+* Benchmarking against MST and Steiner-tree approaches
+* Large-scale performance evaluation
 ---
 
 # Requirements
